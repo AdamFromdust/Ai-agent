@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { streamText } from "ai"
 import { xai } from "@ai-sdk/xai"
 
-// Set a longer timeout for the API route
 export const maxDuration = 60
 
 export async function POST(request: Request) {
@@ -13,15 +12,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 })
     }
 
-    // Stream response from Grok
-    const result = streamText({
+    console.log("Received prompt:", prompt)
+
+    // Create a stream from Grok
+    const stream = streamText({
       model: xai("grok-3-beta"),
       prompt: prompt,
       system: "You are a helpful AI assistant powered by Grok. Provide accurate and helpful responses.",
     })
 
     // Return the streaming response
-    return result.toDataStreamResponse()
+    const response = new Response(
+      new ReadableStream({
+        async start(controller) {
+          // Handle each chunk of the stream
+          stream.onTextChunk((chunk) => {
+            controller.enqueue(new TextEncoder().encode(JSON.stringify({ text: chunk }) + "\n"))
+          })
+
+          // Handle the end of the stream
+          stream.onFinal(() => {
+            controller.close()
+          })
+
+          // Handle any errors
+          stream.onError((error) => {
+            console.error("Stream error:", error)
+            controller.error(error)
+          })
+        },
+      }),
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      },
+    )
+
+    return response
   } catch (error) {
     console.error("Error processing Grok request:", error)
     return NextResponse.json(
