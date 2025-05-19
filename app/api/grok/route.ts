@@ -6,10 +6,34 @@ export const maxDuration = 60
 
 export async function POST(request: Request) {
   try {
-    const { prompt } = await request.json()
-
-    if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required" }, { status: 400 })
+    // Better error handling for JSON parsing
+    let prompt: string;
+    try {
+      const bodyJson = await request.json();
+      
+      if (typeof bodyJson !== 'object' || bodyJson === null) {
+        return NextResponse.json({ error: "Request body must be a JSON object" }, { status: 400 });
+      }
+      
+      if (!('prompt' in bodyJson)) {
+        return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+      }
+      
+      prompt = bodyJson.prompt;
+      
+      if (typeof prompt !== 'string') {
+        return NextResponse.json({ error: "Prompt must be a string" }, { status: 400 });
+      }
+      
+      if (!prompt.trim()) {
+        return NextResponse.json({ error: "Prompt cannot be empty" }, { status: 400 });
+      }
+    } catch (error) {
+      console.error("Error parsing request JSON:", error);
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" }, 
+        { status: 400 }
+      );
     }
 
     console.log("Received prompt:", prompt)
@@ -25,6 +49,7 @@ export async function POST(request: Request) {
     const responseStream = new ReadableStream({
       async start(controller) {
         try {
+          // Use for await loop to iterate through the text stream
           for await (const chunk of result.textStream) {
             controller.enqueue(new TextEncoder().encode(JSON.stringify({ text: chunk }) + "\n"));
           }
