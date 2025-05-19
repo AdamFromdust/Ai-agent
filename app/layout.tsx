@@ -2,14 +2,12 @@ import type React from "react"
 import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Grok AI Assistant",
-  description: "Interact with Grok AI through a simple interface",
+  title: "BlockchainOS - Linear Topology Network",
+  description: "A simulated blockchain operating system with a one-dimensional linear topology",
     generator: 'v0.dev'
 }
 
@@ -20,12 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light">
-          {children}
-          <Toaster />
-        </ThemeProvider>
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }
