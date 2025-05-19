@@ -15,43 +15,41 @@ export async function POST(request: Request) {
     console.log("Received prompt:", prompt)
 
     // Create a stream from Grok
-    const stream = streamText({
+    const result = streamText({
       model: xai("grok-3-beta"),
       prompt: prompt,
       system: "You are a helpful AI assistant powered by Grok. Provide accurate and helpful responses.",
     })
 
     // Return the streaming response
-    const response = new Response(
-      new ReadableStream({
-        async start(controller) {
-          // Handle each chunk of the stream
-          stream.onTextChunk((chunk) => {
-            controller.enqueue(new TextEncoder().encode(JSON.stringify({ text: chunk }) + "\n"))
-          })
-
-          // Handle the end of the stream
-          stream.onFinal(() => {
-            controller.close()
-          })
-
-          // Handle any errors
-          stream.onError((error) => {
-            console.error("Stream error:", error)
-            controller.error(error)
-          })
-        },
-      }),
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
-          Connection: "keep-alive",
-        },
+    const responseStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of result.textStream) {
+            controller.enqueue(new TextEncoder().encode(JSON.stringify({ text: chunk }) + "\n"));
+          }
+        } catch (error) {
+          console.error("Stream iteration error:", error);
+          controller.error(error);
+        } finally {
+          controller.close();
+        }
       },
-    )
+      cancel(reason) {
+        console.log("Stream cancelled:", reason);
+        // You might want to call a method on the AI SDK stream to cancel it if available
+        // For example, if result.abortController exists: result.abortController.abort();
+      }
+    });
 
-    return response
+    return new Response(responseStream, {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+
   } catch (error) {
     console.error("Error processing Grok request:", error)
     return NextResponse.json(
